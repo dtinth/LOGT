@@ -48,7 +48,7 @@ angular.module('logt', [])
   }
   $scope.$watch('data', function(value) {
     localStorage.logt = JSON.stringify(value)
-  })
+  }, true)
   function logt(type) {
     $scope.data.push({ type: type, time: new Date().getTime() })
     $scope.now = new Date().getTime()
