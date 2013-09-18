@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html ng-app="logt">
+<style>
+input {
+  font: 40px/72px Helvetica;
+  height: 72px;
+}
+body {
+  font: 36px/1.3 Helvetica;
+}
+table {
+  font-size: 40px;
+}
+</style>
+<title>LOGT</title>
+
+<body>
+<div ng-controller="LogtController" align=center>
+<input type="button" value="Start" ng-click="start()" ng-disabled="running()">
+<input type="button" value="Pause/Stop" ng-click="stop()" ng-disabled="!running()">
+<input type="button" value="Clear" ng-click="data = []">
+<br>
+<br>
+<table border=1 align=center>
+  <tr><th>Start Time<td>{{ first('start') | time }}
+  <tr><th>Stop Time<td ng-show="!running()">{{ last('stop') | time }}
+  <tr><th>Delta<td>{{ delta() | delta }}
+  <tr><th>Interrupt<td>{{ interrupt() | delta }}
+</table>
+<br>
+<table border=1 align=center>
+  <tr><th>Time<th>Type
+  <tr ng-repeat="item in data">
+    <td align=right>{{ item.time | time }}
+    <td align=center>{{ item.type }}
+</table>
+</div>
+
+<script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.0-rc.2/angular.min.js"></script>
+<script>
+angular.module('logt', [])
+.controller('LogtController', function($scope) {
+  $scope.now = new Date().getTime()
+  $scope.data = []
+  try {
+    $scope.data = JSON.parse(localStorage.logt)
+  } catch (e) {
+  }
+  $scope.$watch('data', function(value) {
+    localStorage.logt = JSON.stringify(value)
+  })
+  function logt(type) {
+    $scope.data.push({ type: type, time: new Date().getTime() })
+    $scope.now = new Date().getTime()
+  }
+  setInterval(function() {
+    $scope.$apply(function() {
+      $scope.now = new Date().getTime()
+    })
+  }, 1000)
+  $scope.start = function() {
+    logt('start')
+  }
+  $scope.stop = function() {
+    logt('stop')
+  }
+  function timeFrom(a, b, add) {
+    var delta = 0
+    var state = null
+    var startTime = null
+    $scope.data.forEach(function(item) {
+      if (item.type == a) {
+        startTime = item.time
+      } else if (item.type == b && state == a) {
+        delta += item.time - startTime
+        startTime = null
+      }
+      state = item.type
+    })
+    if (add && state == a) {
+      delta += $scope.now - startTime
+    }
+    return delta
+  }
+  var last = (function(a) { return a[a.length - 1] })
+  var maybe = (function(a, f) { return a && f(a) })
+  var get = (function(c) { return function(x) { return x[c] } })
+  $scope.running = function() {
+    return maybe(last($scope.data), get('type')) == 'start'
+  }
+  $scope.delta = function() {
+    return timeFrom('start', 'stop', true)
+  }
+  $scope.interrupt = function() {
+    return timeFrom('stop', 'start')
+  }
+  function filter(x) {
+    return $scope.data.filter(function(a) {
+      return a.type == x
+    })
+  }
+  function getTime(x) {
+    return x && x.time
+  }
+  $scope.first = function(x) {
+    return getTime(filter(x)[0])
+  }
+  $scope.last = function(x) {
+    return getTime(last(filter(x)))
+  }
+})
+.filter('delta', function() {
+  return function(input) {
+    return Math.floor(input / 60000)
+  }
+})
+.filter('time', function() {
+  function two(x) {
+    return x < 10 ? '0' + x : '' + x
+  }
+  return function(input) {
+    var d = new Date(+input)
+    return two(d.getHours()) + ':' + two(d.getMinutes())
+  }
+})
+</script>
+
+</body>
+</html>
